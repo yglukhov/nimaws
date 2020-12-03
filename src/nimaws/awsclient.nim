@@ -37,7 +37,7 @@ type
 const iso_8601_aws = "yyyyMMdd'T'HHmmss'Z'"
 
 proc getAmzDateString*():string=
-  return format(getGMTime(getTime()), iso_8601_aws)
+  return format(utc(getTime()), iso_8601_aws)
 
 proc newAwsClient*(credentials:(string,string),region,service:string):AwsClient=
   let
@@ -49,19 +49,15 @@ proc newAwsClient*(credentials:(string,string),region,service:string):AwsClient=
   return AwsClient(httpClient:httpclient, credentials:creds, scope:scope,key:"", key_expires:getTime())
 
 proc request*(client:var AwsClient,params:Table):Future[AsyncResponse]=
-  var
-    action = "GET"
-    payload = ""
-    path = ""
+  let
+    action = params.getOrDefault("action", "GET")
+    payload = params.getOrDefault("payload")
+    path = params.getOrDefault("path")
+    bucket = params.getOrDefault("bucket")
 
-  if params.hasKey("action"):
-    action = params["action"]
-
-  if params.hasKey("payload"):
-    payload = params["payload"]
-
-  if params.hasKey("path"):
-    path = params["path"]
+  if not client.httpClient.isNil:
+    client.httpClient.close()
+  client.httpclient = newAsyncHttpClient("nimaws-sdk/0.1.1; "&defUserAgent.replace(" ","-").toLower&"; darwin/16.7.0")
 
   var
     url:string
@@ -70,20 +66,19 @@ proc request*(client:var AwsClient,params:Table):Future[AsyncResponse]=
     raise newException(EAWSCredsMissing,"Missing credentails id/secret pair")
 
   if client.isAws:
-    if params.hasKey("bucket"):
-      url = ("https://$1.$2.amazonaws.com/$3" % [params["bucket"],client.scope.service,path])
+    if bucket.len != 0:
+      url = ("https://$1.$2.amazonaws.com/$3" % [bucket,client.scope.service,path])
     else:
       url = ("https://$1.amazonaws.com/$2" % [client.scope.service,path])
   else:
-     var
-        bucket = if params.hasKey("bucket"): params["bucket"] else: ""
      if client.endpoint.port.len > 0 and client.endpoint.port != "80":
         url = ("$1://$2:$3/$4$5" % [client.endpoint.scheme,client.endpoint.hostname,client.endpoint.port,bucket,path])
      else:
         url = ("$1://$2/$3$4" % [client.endpoint.scheme,client.endpoint.hostname,bucket,path])
   let
      req:AwsRequest = (action: action, url: url, payload: payload)
-  echo url
+
+  # echo "url: ", url
   # Add signing key caching so we can skip a step
   # utilizing some operator overloading on the create_aws_authorization proc.
   # if passed a key and not headers, just return the authorization string; otherwise, create the key and add to the headers
@@ -91,7 +86,7 @@ proc request*(client:var AwsClient,params:Table):Future[AsyncResponse]=
   if client.key_expires <= getTime():
     client.scope.date = getAmzDateString()
     client.key = create_aws_authorization(client.credentials, req, client.httpClient.headers.table, client.scope)
-    client.key_expires = getTime() + initInterval(minutes=5)
+    client.key_expires = getTime() + minutes(5)
   else:
     let auth = create_aws_authorization(client.credentials[0], client.key, req, client.httpClient.headers.table, client.scope)
     client.httpClient.headers.add("Authorization", auth)

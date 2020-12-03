@@ -63,3 +63,13 @@ method list_buckets*(self:var S3Client) : Future[AsyncResponse] {.base,gcsafe.} 
     }.toTable
 
   return self.request(params)
+
+method get_acl*(self:var S3Client, bucket: string) : Future[AsyncResponse] {.base,gcsafe.} =
+  let params = {
+      "action": "GET",
+      "bucket": bucket,
+      "path": "/?acl=",
+      # "path": "/some-folder/somefile-1194"
+    }.toTable
+
+  return self.request(params)
