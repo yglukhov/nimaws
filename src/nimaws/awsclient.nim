@@ -25,7 +25,7 @@ type
     url: string
     payload: string
 
-  AwsClient* {.inheritable.} = object
+  AwsClient* {.inheritable.} = ref object
     httpClient*: AsyncHttpClient
     credentials*: AwsCredentials
     scope*: AwsScope
@@ -48,7 +48,7 @@ proc newAwsClient*(credentials:(string,string),region,service:string):AwsClient=
 
   return AwsClient(httpClient:httpclient, credentials:creds, scope:scope,key:"", key_expires:getTime())
 
-proc request*(client:var AwsClient,params:Table):Future[AsyncResponse]=
+proc request*(client: AwsClient,params:Table):Future[AsyncResponse]=
   let
     action = params.getOrDefault("action", "GET")
     payload = params.getOrDefault("payload")

@@ -10,7 +10,7 @@ import awsclient
 
 
 type
-  S3Client* = object of AwsClient
+  S3Client* = ref object of AwsClient
 
 proc newS3Client*(credentials:(string,string),region:string=defRegion,host:string=awsEndpt):S3Client=
   let
@@ -25,7 +25,7 @@ proc newS3Client*(credentials:(string,string),region:string=defRegion,host:strin
     endpoint = host
   return S3Client(httpClient:httpclient, credentials:creds, scope:scope, endpoint:parseUri(endpoint),isAWS:endpoint.endsWith(awsEndpt),key:"", key_expires:getTime())
 
-method get_object*(self:var S3Client,bucket,key:string) : Future[AsyncResponse] {.base.} =
+method get_object*(self: S3Client,bucket,key:string) : Future[AsyncResponse] {.base.} =
   var
     path = key
   let params = {
@@ -40,7 +40,7 @@ method get_object*(self:var S3Client,bucket,key:string) : Future[AsyncResponse] 
 ##  bucket name
 ##  path has to be absoloute path in the form /path/to/file
 ##  payload is binary string
-method put_object*(self:var S3Client,bucket,path:string,payload:string) : Future[AsyncResponse] {.base,gcsafe.} =
+method put_object*(self: S3Client,bucket,path:string,payload:string) : Future[AsyncResponse] {.base,gcsafe.} =
   let params = {
       "action": "PUT",
       "bucket": bucket,
@@ -50,21 +50,21 @@ method put_object*(self:var S3Client,bucket,path:string,payload:string) : Future
 
   return self.request(params)
 
-method list_objects*(self:var S3Client, bucket: string) : Future[AsyncResponse] {.base,gcsafe.} =
+method list_objects*(self: S3Client, bucket: string) : Future[AsyncResponse] {.base,gcsafe.} =
   let params = {
       "bucket": bucket
     }.toTable
 
   return self.request(params)
 
-method list_buckets*(self:var S3Client) : Future[AsyncResponse] {.base,gcsafe.} =
+method list_buckets*(self: S3Client) : Future[AsyncResponse] {.base,gcsafe.} =
   let params = {
       "action": "GET"
     }.toTable
 
   return self.request(params)
 
-method get_acl*(self:var S3Client, bucket: string) : Future[AsyncResponse] {.base,gcsafe.} =
+method get_acl*(self: S3Client, bucket: string) : Future[AsyncResponse] {.base,gcsafe.} =
   let params = {
       "action": "GET",
       "bucket": bucket,
