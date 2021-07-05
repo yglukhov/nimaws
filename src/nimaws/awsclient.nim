@@ -54,6 +54,7 @@ proc request*(client: AwsClient,params:Table):Future[AsyncResponse]=
     payload = params.getOrDefault("payload")
     path = params.getOrDefault("path")
     bucket = params.getOrDefault("bucket")
+    acl = params.getOrDefault("acl")
 
   if not client.httpClient.isNil:
     client.httpClient.close()
@@ -90,5 +91,8 @@ proc request*(client: AwsClient,params:Table):Future[AsyncResponse]=
   else:
     let auth = create_aws_authorization(client.credentials[0], client.key, req, client.httpClient.headers.table, client.scope)
     client.httpClient.headers.add("Authorization", auth)
+
+  if acl.len > 0 :
+    client.httpClient.headers.add("x-amz-acl", acl)
 
   return client.httpClient.request(url,action,payload)
