@@ -19,7 +19,7 @@ proc newS3Client*(credentials:(string,string),region:string=defRegion,host:strin
     httpclient = newAsyncHttpClient("nimaws-sdk/0.1.1; "&defUserAgent.replace(" ","-").toLower&"; darwin/16.7.0")
     scope = AwsScope(date: getAmzDateString(), region: region, service: "s3")
   var endpoint:string
-  if not host.startsWith("http"): 
+  if not host.startsWith("http"):
     endpoint = "https://" & host
   else:
     endpoint = host
@@ -65,12 +65,13 @@ proc downloadObjectIfAbsent*(self: S3Client, bucket, key, toPath: string) {.asyn
 ##  bucket name
 ##  path has to be absoloute path in the form /path/to/file
 ##  payload is binary string
-proc putObjectRaw(self: S3Client, bucket, path, payload: string): Future[AsyncResponse] =
+proc putObjectRaw(self: S3Client, bucket, path, payload, acl: string): Future[AsyncResponse] =
   let params = {
       "action": "PUT",
       "bucket": bucket,
       "path": path,
-      "payload": payload
+      "payload": payload,
+      "acl": acl
     }.toTable
 
   return self.request(params)
@@ -122,8 +123,8 @@ proc getAclRaw*(self: S3Client, bucket: string): Future[AsyncResponse] =
 
   return self.request(params)
 
-proc putObjectWithContent*(self: S3Client, content, bucket, key: string) {.async.} =
-  let r = await self.putObjectRaw(bucket, key, content)
+proc putObjectWithContent*(self: S3Client, content, bucket, key: string, acl: string = "") {.async.} =
+  let r = await self.putObjectRaw(bucket, key, content, acl)
   let b = await r.body
   if r.code != Http200:
     raise newException(IOError, "Could not put file " & key)
